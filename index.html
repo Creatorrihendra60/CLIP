@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VIRAL AI — Clip Studio</title>
+<style>
+:root{--bg:#0b1020;--panel:#141d33;--panel2:#1b2944;--text:#edf3ff;--muted:#a9b7d0;--blue:#75c8ff;--line:#2b3b5b}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#0b1020,#101b31);color:var(--text);font:15px/1.5 system-ui,Segoe UI,Arial}
+header{padding:24px max(18px,calc((100% - 1150px)/2));border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{margin:0;font-size:26px;letter-spacing:1px}h1 span{color:var(--blue)}main{max-width:1150px;margin:24px auto;padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;min-width:0}
+h2{font-size:18px;margin:0 0 12px}h3{font-size:15px;margin:18px 0 8px;color:var(--blue)}
+input,textarea,select,button{font:inherit}input[type=text],input[type=number],textarea,select{width:100%;background:#0c1528;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:10px;margin:5px 0 10px}
+textarea{min-height:110px;resize:vertical}button{background:#78caff;color:#071321;border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer;margin:4px 4px 4px 0}button.secondary{background:#263957;color:var(--text);border:1px solid #3b5278}button:disabled{opacity:.5;cursor:wait}
+small,.muted{color:var(--muted)}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row>*{flex:1}.full{grid-column:1/-1}
+video{width:100%;max-height:360px;background:#05080f;border-radius:10px;margin-top:10px}
+#status{white-space:pre-wrap;background:#0b1528;border-radius:8px;padding:10px;color:#b9d7ff;margin-top:10px}
+.caption{display:grid;grid-template-columns:85px 1fr;gap:8px;margin:7px 0}.caption input{margin:0}.pill{display:inline-block;background:#203451;border-radius:20px;padding:4px 9px;color:#bfe5ff;font-size:12px}
+label{display:block;color:var(--muted);font-size:13px;margin-top:5px}
+@media(max-width:800px){main{grid-template-columns:1fr}.full{grid-column:auto}}
+</style></head>
+<body>
+<header><h1>VIRAL <span>AI</span></h1><span class="pill">AUTO CAPTIONS • AI COMMENTARY • CLIP STUDIO</span></header>
+<main>
+<section class="card">
+<h2>1. Video source</h2>
+<label>YouTube URL — preview only</label><input id="yturl" type="text" placeholder="Paste a YouTube link">
+<button class="secondary" id="previewBtn">Preview YouTube</button>
+<div id="ytbox"></div>
+<label>Upload an MP4 you own or have permission to edit</label><input id="videoFile" type="file" accept="video/mp4,video/quicktime,video/webm">
+<video id="localVideo" controls></video>
+<p class="muted">YouTube preview does not provide a downloadable video file. Upload an authorized MP4 to generate captions and clips.</p>
+</section>
+<section class="card">
+<h2>2. Automatic captions</h2>
+<p class="muted">Transcribe the uploaded video's speech, then edit the generated caption segments.</p>
+<button id="transcribeBtn">✨ Generate Auto Captions</button>
+<button class="secondary" id="srtBtn">Export SRT</button>
+<div id="captions"><p class="muted">No captions yet.</p></div>
+</section>
+<section class="card">
+<h2>3. AI commentary</h2>
+<label>Commentary style</label><select id="style"><option>Energetic viral shorts</option><option>Funny and entertaining</option><option>Informative documentary</option><option>Calm storytelling</option><option>Motivational</option></select>
+<label>Transcript / source text</label><textarea id="transcript" placeholder="Auto transcription appears here. You can also paste your own transcript."></textarea>
+<button id="commentBtn">✨ Generate AI Commentary</button>
+<label>Editable commentary script</label><textarea id="commentary" placeholder="Your generated commentary will appear here..."></textarea>
+<div class="row"><button class="secondary" id="speakBtn">▶ Play voice</button><button class="secondary" id="stopVoiceBtn">Stop voice</button></div>
+</section>
+<section class="card">
+<h2>4. Clip export settings</h2>
+<label>Clip start (seconds)</label><input id="start" type="number" min="0" value="0">
+<label>Clip length (seconds)</label><input id="duration" type="number" min="3" value="30">
+<label>Aspect ratio</label><select id="aspect"><option value="9:16">Vertical 9:16 (Shorts)</option><option value="16:9">Landscape 16:9</option><option value="1:1">Square 1:1</option></select>
+<label>Output resolution</label><select id="resolution"><option value="720">720p</option><option value="1080" selected>1080p</option><option value="1440">1440p</option><option value="2160">4K (2160p)</option></select>
+<label><input type="checkbox" id="enhance" checked> Basic visual enhancement (denoise, sharpen, brightness/contrast)</label>
+<label><input type="checkbox" id="burnCaptions"> Burn captions into exported clip (uses generated SRT)</label>
+<button id="renderBtn">Create watermark-free clip</button>
+<p class="muted">Exports do not add a VIRAL AI watermark. Exporting does not remove watermarks already present in source footage. Output quality is limited by the source video; 4K export is not true AI super-resolution.</p>
+<a id="downloadClip" hidden download="viral-ai-clip.mp4">Download rendered clip</a>
+</section>
+<section class="card full">
+<h2>5. Status</h2><div id="status">Ready. Set your backend URL in frontend/config.js, then upload an MP4.</div>
+</section>
+</main>
+<script src="config.js"></script>
+<script>
+const API=(window.VIRAL_AI_API||"").replace(/\/$/,"");
+const $=id=>document.getElementById(id);let captions=[],videoURL=null;
+function status(s){$("status").textContent=s}
+function needAPI(){if(!API){status("Backend URL is missing. Set window.VIRAL_AI_API in config.js.");return false}return true}
+function timeSrt(t){t=Math.max(0,t);let h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=Math.floor(t%60),ms=Math.floor((t%1)*1000);return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")},${String(ms).padStart(3,"0")}`}
+function makeCaptions(text){let sentences=text.match(/[^.!?]+[.!?]+|[^.!?]+$/g)||[text];sentences=sentences.map(x=>x.trim()).filter(Boolean);let total=Math.max(3,Number($("duration").value)||30),each=total/sentences.length;captions=sentences.map((text,i)=>({start:i*each,end:(i+1)*each,text}));renderCaptions()}
+function renderCaptions(){let box=$("captions");box.innerHTML="";if(!captions.length){box.textContent="No captions yet.";return}captions.forEach((c,i)=>{let div=document.createElement("div");div.className="caption";let tm=document.createElement("input");tm.type="text";tm.value=`${c.start.toFixed(1)}–${c.end.toFixed(1)}s`;tm.disabled=true;let tx=document.createElement("input");tx.value=c.text;tx.addEventListener("input",()=>captions[i].text=tx.value);div.append(tm,tx);box.append(div)})}
+$("videoFile").addEventListener("change",()=>{let f=$("videoFile").files[0];if(f){if(videoURL)URL.revokeObjectURL(videoURL);videoURL=URL.createObjectURL(f);$("localVideo").src=videoURL;status("Video loaded: "+f.name)}});
+$("previewBtn").onclick=()=>{let m=$("yturl").value.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{11})/);if(!m){status("Please enter a valid YouTube URL.");return}$("ytbox").innerHTML=`<iframe width="100%" height="260" src="https://www.youtube-nocookie.com/embed/${m[1]}" title="YouTube preview" frameborder="0" allowfullscreen></iframe>`};
+$("transcribeBtn").onclick=async()=>{if(!needAPI())return;let f=$("videoFile").files[0];if(!f){status("Upload an MP4 first. YouTube URLs are preview-only.");return}let fd=new FormData();fd.append("file",f);$("transcribeBtn").disabled=true;status("Uploading video and generating transcript…");try{let r=await fetch(API+"/api/transcribe",{method:"POST",body:fd});let d=await r.json();if(!r.ok)throw Error(d.detail||"Transcription failed");$("transcript").value=d.text;makeCaptions(d.text);status("Transcription complete. Caption timing is estimated from sentence length; review it before export.")}catch(e){status("Error: "+e.message)}finally{$("transcribeBtn").disabled=false}};
+$("commentBtn").onclick=async()=>{if(!needAPI())return;let transcript=$("transcript").value.trim();if(!transcript){status("Add or generate a transcript first.");return}$("commentBtn").disabled=true;status("Generating AI commentary…");try{let r=await fetch(API+"/api/commentary",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({transcript,style:$("style").value})});let d=await r.json();if(!r.ok)throw Error(d.detail||"Commentary failed");$("commentary").value=d.commentary;status("AI commentary generated. Edit it before using.")}catch(e){status("Error: "+e.message)}finally{$("commentBtn").disabled=false}};
+$("srtBtn").onclick=()=>{if(!captions.length){status("Generate captions first.");return}let srt=captions.map((c,i)=>`${i+1}\n${timeSrt(c.start)} --> ${timeSrt(c.end)}\n${c.text}`).join("\n\n");let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([srt],{type:"text/plain"}));a.download="viral-ai-captions.srt";a.click();URL.revokeObjectURL(a.href)};
+$("speakBtn").onclick=()=>{if(!("speechSynthesis"in window))return status("Voice playback is not supported in this browser.");speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance($("commentary").value||"Add commentary first."))};
+$("stopVoiceBtn").onclick=()=>speechSynthesis.cancel();
+$("renderBtn").onclick=async()=>{if(!needAPI())return;let f=$("videoFile").files[0];if(!f){status("Upload an authorized MP4 first.");return}let fd=new FormData();fd.append("file",f);fd.append("start", $("start").value);fd.append("duration",$("duration").value);fd.append("resolution",$("resolution").value);fd.append("aspect",$("aspect").value);fd.append("enhance",$("enhance").checked?"true":"false");$("renderBtn").disabled=true;status("Rendering clip online. This may take a while, especially at 4K…");try{let r=await fetch(API+"/api/render",{method:"POST",body:fd});if(!r.ok){let d=await r.json().catch(()=>({}));throw Error(d.detail||"Render failed")}let blob=await r.blob();let u=URL.createObjectURL(blob);$("downloadClip").href=u;$("downloadClip").hidden=false;$("downloadClip").textContent="Download your clip";status("Clip ready. Use the download link above.")}catch(e){status("Error: "+e.message)}finally{$("renderBtn").disabled=false}};
+</script></body></html>

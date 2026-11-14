@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: viral-ai-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: "*"
