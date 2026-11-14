@@ -3,3 +3,4 @@ uvicorn[standard]==0.34.2
 yt-dlp==2025.3.31
 faster-whisper==1.1.1
 openai==1.78.1
+requests
