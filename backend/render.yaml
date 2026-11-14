@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: viral-ai-api
+    runtime: docker
+    rootDir: backend
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: FRONTEND_ORIGIN
+        value: "*"

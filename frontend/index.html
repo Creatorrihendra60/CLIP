@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VIRAL AI — Automatic Clips</title>
+<style>
+:root{color-scheme:dark;--bg:#080d18;--panel:#111b2d;--line:#25334b;--blue:#69b9ff;--text:#eef5ff;--muted:#9aabc4}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#142746,#080d18 60%);color:var(--text);font:16px Arial,sans-serif;min-height:100vh}
+main{max-width:900px;margin:0 auto;padding:42px 20px}.brand{font-size:13px;letter-spacing:5px;color:var(--blue);font-weight:bold}
+h1{font-size:clamp(36px,7vw,64px);margin:12px 0 8px;letter-spacing:-2px}h1 span{color:var(--blue)}
+.lead{color:var(--muted);line-height:1.6;max-width:650px}.panel{margin-top:28px;padding:26px;border:1px solid var(--line);border-radius:20px;background:#101a2beF;box-shadow:0 18px 60px #0005}
+label{display:block;font-weight:bold;margin:0 0 10px}input,select{width:100%;padding:16px;border-radius:11px;border:1px solid #344763;background:#091222;color:white;font-size:16px}
+.grid{display:grid;grid-template-columns:1fr 150px;gap:14px;margin-top:15px}button{margin-top:18px;width:100%;padding:16px;border:0;border-radius:11px;background:linear-gradient(90deg,#2387ef,#6ac5ff);color:#06111f;font-weight:800;font-size:16px;cursor:pointer}
+button:disabled{opacity:.5;cursor:wait}.status{margin-top:20px;padding:14px;border-radius:10px;background:#091222;color:var(--blue);min-height:48px}
+.small{font-size:13px;color:var(--muted);line-height:1.55;margin-top:16px}.clips{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:18px}
+.clip{background:#0a1424;border:1px solid var(--line);border-radius:13px;padding:12px}.clip video{width:100%;aspect-ratio:9/16;object-fit:contain;background:#000;border-radius:8px}.clip a{display:block;color:var(--blue);margin-top:10px;font-weight:bold}
+footer{color:#71829d;font-size:12px;margin-top:26px}
+@media(max-width:560px){.grid{grid-template-columns:1fr}.panel{padding:18px}}
+</style>
+</head>
+<body><main>
+<div class="brand">AI VIDEO STUDIO</div>
+<h1>MAKE IT <span>VIRAL.</span></h1>
+<p class="lead">Turn a video you’re allowed to edit into short vertical clips. VIRAL AI finds interesting spoken moments, adds captions, and prepares clips for Shorts and Reels.</p>
+<section class="panel">
+<label for="url">YouTube video URL</label>
+<input id="url" type="url" placeholder="https://www.youtube.com/watch?v=…" autocomplete="url">
+<div class="grid">
+<div><label for="count">Number of clips</label><select id="count"><option>3</option><option selected>5</option><option>7</option><option>10</option></select></div>
+<div></div>
+</div>
+<button id="start">FIND MY CLIPS</button>
+<div id="status" class="status">Ready when you are.</div>
+<div id="clips" class="clips"></div>
+<p class="small">Use only videos you own or have permission to download and edit, and make sure your use follows YouTube’s terms and applicable copyright rules. Processing can take several minutes. This starter version detects moments from speech and center-crops to 9:16; it does not guarantee virality.</p>
+</section>
+<footer>VIRAL AI · Automatic clipping studio</footer>
+</main>
+<script src="config.js"></script>
+<script>
+const $=id=>document.getElementById(id), api=(window.VIRAL_AI_API||"").replace(/\/$/,"");
+let busy=false;
+function status(t){$("status").textContent=t}
+$("start").onclick=async()=>{
+ if(busy)return;
+ const url=$("url").value.trim();
+ if(!/^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(url)){status("Enter a valid YouTube video link.");return}
+ if(!api||api.includes("YOUR-BACKEND")){status("The processing server is not connected yet. Complete the Render setup and add its URL to config.js.");return}
+ busy=true;$("start").disabled=true;$("clips").innerHTML="";status("Connecting to VIRAL AI…");
+ try{
+  const r=await fetch(api+"/api/process",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({youtube_url:url,clips:Number($("count").value)})});
+  const d=await r.json();if(!r.ok)throw new Error(d.detail||"Could not start job.");
+  let done=false;
+  while(!done){
+   await new Promise(res=>setTimeout(res,4000));
+   const q=await fetch(api+"/api/jobs/"+d.job_id);const j=await q.json();
+   status(j.message||j.status);
+   if(j.status==="failed")throw new Error(j.message);
+   if(j.status==="completed"){
+    done=true;
+    $("clips").innerHTML=j.clips.map((c,i)=>`<article class="clip"><video controls playsinline src="${api+c.url}"></video><div><b>Clip ${i+1}</b><p class="small">${Math.round(c.start)}s–${Math.round(c.end)}s · ${escapeHtml(c.reason)}</p><a href="${api+c.url}" download="viral_clip_${i+1}.mp4">Download MP4</a></div></article>`).join("");
+   }
+  }
+ }catch(e){status("Error: "+e.message)}
+ finally{busy=false;$("start").disabled=false}
+};
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+</script></body></html>
